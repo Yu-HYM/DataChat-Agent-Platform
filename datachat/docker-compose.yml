@@ -1,0 +1,52 @@
+﻿version: "3.8"
+
+services:
+  api:
+    build: .
+    container_name: datachat-api
+    ports:
+      - "9000:9000"
+    environment:
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - MYSQL_HOST=host.docker.internal
+      - MYSQL_PORT=3306
+      - MYSQL_USER=agent_ro
+      - MYSQL_PASSWORD=123456
+      - MYSQL_DATABASE=mall_ads
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./chroma_db:/app/chroma_db
+      - ./kb_docs:/app/kb_docs
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  web:
+    build: .
+    container_name: datachat-web
+    command: streamlit run web/frontend.py --server.address 0.0.0.0 --server.port 8501
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api:9000
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - MYSQL_HOST=host.docker.internal
+      - MYSQL_PORT=3306
+      - MYSQL_USER=agent_ro
+      - MYSQL_PASSWORD=123456
+      - MYSQL_DATABASE=mall_ads
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - ./chroma_db:/app/chroma_db
+      - ./kb_docs:/app/kb_docs
+      - ./logs:/app/logs
+    restart: unless-stopped
